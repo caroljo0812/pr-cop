@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pr-cop"
+version = "0.1.0"
+description = "Multi-agent code review squad: 4 specialist reviewers + consensus, biographied by Xiaomi MiMo v2.5 Pro"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Carol Johnson", email = "tasikadoo@gmail.com" },
+]
+keywords = ["mimo", "xiaomi-mimo", "code-review", "agent", "github", "ai", "multi-agent", "consensus"]
+dependencies = [
+    "fastapi>=0.110",
+    "httpx>=0.27",
+    "pydantic>=2.5",
+    "click>=8.1",
+    "rich>=13.7",
+    "gitpython>=3.1",
+    "python-dotenv>=1.0",
+    "uvicorn[standard]>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+prcop = "prcop.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/caroljo0812/pr-cop"
+Repository = "https://github.com/caroljo0812/pr-cop"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"prcop" = ["py.typed"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
