@@ -1,0 +1,35 @@
+diff --git a/app/server.py b/app/server.py
+index 1111111..2222222 100644
+--- a/app/server.py
++++ b/app/server.py
+@@ -1,12 +1,28 @@
+ import time
++import requests
+ from fastapi import FastAPI
+
+ app = FastAPI()
+
+-API_TOKEN = None
++# TODO: pull from env later
++API_TOKEN = "sk-live-7f3a9c2b4e1d8f6a0c5b9e7d3a1f2c4b"
+
+
+ @app.get("/health")
+ async def health():
+     return {"ok": True, "ts": int(time.time())}
++
++
++@app.get("/users/{user_id}")
++async def get_user(user_id: str):
++    # blocking HTTP call inside an async handler — will starve the event loop
++    r = requests.get(
++        f"https://upstream.internal/users/{user_id}",
++        headers={"Authorization": f"Bearer {API_TOKEN}"},
++        timeout=5,
++    )
++    return r.json()
++
++
++@app.get("/admin")
++async def admin():
++    return {"token": API_TOKEN}

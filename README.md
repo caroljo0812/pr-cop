@@ -1,5 +1,10 @@
 # PR Cop
 
+[![ci](https://github.com/caroljo0812/pr-cop/actions/workflows/tests.yml/badge.svg)](https://github.com/caroljo0812/pr-cop/actions/workflows/tests.yml)
+[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 Multi-agent code review squad. Four specialist reviewers run in parallel against
 your diff (security, performance, style, test coverage), then a consensus pass
 deduplicates findings and writes a single human verdict for the PR author.
@@ -54,15 +59,22 @@ Python 3.10+ is required.
 Copy `.env.example` to `.env` and fill in what you need:
 
 ```env
+# reviewer
 PRCOP_LLM_PROVIDER=mimo
-PRCOP_LLM_API_KEY=your-key
+PRCOP_LLM_API_KEY=***
 PRCOP_LLM_MODEL=mimo-v2.5-pro
-
-PRCOP_GITHUB_TOKEN=ghp_xxx   # only for posting PR comments
-PRCOP_HOST=0.0.0.0
-PRCOP_PORT=8080
-PRCOP_CONCURRENCY=4
 PRCOP_MAX_TOKENS=1200
+PRCOP_CONCURRENCY=4
+
+# github (only for posting PR comments)
+PRCOP_GITHUB_TOKEN=***
+
+# server
+PRCOP_HOST=127.0.0.1            # 0.0.0.0 only behind auth or a reverse proxy
+PRCOP_PORT=8080
+PRCOP_API_KEY=***                # if set, /review/* requires X-PRCOP-API-Key
+PRCOP_MAX_DIFF_BYTES=1048576    # reject diffs larger than this (default 1 MiB)
+PRCOP_CORS_ORIGINS=*            # comma-separated allowlist
 ```
 
 ## Use it
@@ -75,6 +87,12 @@ Review a diff file:
 prcop review --diff feature.diff
 ```
 
+Run only a subset of specialists:
+
+```bash
+prcop review --diff feature.diff --specialists security,performance
+```
+
 Review the diff between two refs in a local repo:
 
 ```bash
@@ -84,7 +102,7 @@ prcop review --repo . --base main --head feature/auth-fix
 Review a GitHub PR and post the verdict back as a comment:
 
 ```bash
-export PRCOP_GITHUB_TOKEN=ghp_xxx
+export PRCOP_GITHUB_TOKEN=***
 prcop review-pr octocat/hello-world 42 --post-comment --markdown
 ```
 
@@ -105,16 +123,16 @@ prcop provider
 Run the FastAPI server:
 
 ```bash
-prcop serve            # PRCOP_HOST / PRCOP_PORT or defaults 0.0.0.0:8080
+prcop serve            # PRCOP_HOST / PRCOP_PORT, default 127.0.0.1:8080
 ```
 
 Endpoints:
 
-- `GET  /` — service metadata + reviewer info
+- `GET  /` — service metadata, reviewer info, configured limits
 - `GET  /health` — liveness
 - `GET  /provider` — active provider snapshot
-- `POST /review/diff` — review a unified diff text body
-- `POST /review/github` — review a GitHub PR (`{owner, repo, pr_number, post_comment?}`)
+- `POST /review/diff` — review a unified diff text body (auth-gated when `PRCOP_API_KEY` is set)
+- `POST /review/github` — review a GitHub PR (`{owner, repo, pr_number, post_comment?, specialists?}`)
 - `GET  /demo` — small static demo page
 
 Example:
@@ -122,8 +140,12 @@ Example:
 ```bash
 curl -s http://localhost:8080/review/diff \
   -H 'content-type: application/json' \
-  -d "{\"diff\": $(jq -Rs . feature.diff)}" | jq .verdict
+  -H "X-PRCOP-API-Key: $PRCOP_API_KEY" \
+  -d "{\"diff\": $(jq -Rs . feature.diff), \"specialists\": [\"security\"]}" \
+  | jq .verdict
 ```
+
+See [`examples/`](examples/) for ready-to-run curl scripts and a sample diff.
 
 ## Output shape
 
@@ -170,7 +192,7 @@ PRCOP_LLM_PROVIDER=mock pytest -q
 ```
 
 Tests run against the mock provider so they don't hit the network. CI runs the
-same suite on Python 3.11 and 3.12.
+same suite on Python 3.10, 3.11, and 3.12, plus a `ruff check` lint job.
 
 ## Layout
 
@@ -182,11 +204,12 @@ src/prcop/
   specialists.py    # 4 specialist prompts + Finding shape + JSON contract
   consensus.py      # dedup, severity merge, verdict writer
   orchestrator.py   # parallel fan-out + report renderers
-  server.py         # FastAPI app
+  server.py         # FastAPI app + auth + size limits
   cli.py            # Click CLI
-demo/index.html     # static demo page
+  demo.html         # static demo page (bundled with the package)
+examples/           # ready-to-run sample diffs + curl scripts
 tests/              # pytest suite
-.github/workflows   # CI
+.github/workflows   # CI: tests matrix + ruff lint
 ```
 
 ## License
