@@ -9,6 +9,8 @@ specialists are narrow on purpose: each one reads the same diff but only flags
 things in its own focus area, which keeps signal-to-noise far higher than a
 single generalist reviewer.
 
+![PR Cop demo](assets/demo.png)
+
 ## What it does
 
 Given a unified diff (file, stdin, local repo, or GitHub PR), PR Cop:
