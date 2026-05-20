@@ -41,7 +41,7 @@ Repository = "https://github.com/caroljo0812/pr-cop"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"prcop" = ["py.typed"]
+"prcop" = ["py.typed", "demo.html"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -89,7 +89,7 @@ async def provider() -> dict[str, Any]:
     return provider_info()
 
 
-_DEMO_PATH = Path(__file__).resolve().parents[2] / "demo" / "index.html"
+_DEMO_PATH = Path(__file__).resolve().parent / "demo.html"
 
 
 @app.get("/demo")

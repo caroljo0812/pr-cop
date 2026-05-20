@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PR Cop — multi-agent code review squad</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #161922;
+      --panel-2: #1d2230;
+      --ink: #e7eaf0;
+      --muted: #99a1b3;
+      --accent: #ffd166;
+      --good: #6dd5ad;
+      --bad: #ef6f6c;
+      --warn: #f4a261;
+      --line: #232839;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 1100px; margin: 0 auto; padding: 56px 24px 80px; }
+    header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+    h1 { font-size: 32px; margin: 0; letter-spacing: -0.02em; }
+    h1 .badge { font-size: 12px; padding: 4px 8px; border-radius: 999px; background: var(--panel-2); color: var(--accent); margin-left: 8px; vertical-align: middle; }
+    .lede { color: var(--muted); margin: 0 0 32px; max-width: 70ch; }
+    .grid { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+    .panel h2 { margin: 0 0 12px; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    textarea, pre {
+      width: 100%; background: var(--panel-2); color: var(--ink);
+      border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+      font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      resize: vertical;
+    }
+    textarea { min-height: 280px; }
+    pre { white-space: pre-wrap; min-height: 280px; max-height: 540px; overflow: auto; margin: 0; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    button {
+      background: var(--accent); color: #1c1c1c; border: 0;
+      padding: 9px 16px; border-radius: 999px; font-weight: 600; cursor: pointer;
+    }
+    button.secondary { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+    button:disabled { opacity: 0.5; cursor: progress; }
+    .findings { margin-top: 24px; display: grid; gap: 10px; }
+    .finding { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+    .finding .top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .sev { font-size: 11px; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; }
+    .sev.critical { background: rgba(239,111,108,.15); color: var(--bad); }
+    .sev.high     { background: rgba(244,162,97,.15); color: var(--warn); }
+    .sev.medium   { background: rgba(255,209,102,.15); color: var(--accent); }
+    .sev.low      { background: rgba(109,213,173,.15); color: var(--good); }
+    .sev.info     { background: rgba(153,161,179,.15); color: var(--muted); }
+    .meta { color: var(--muted); font-size: 12px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--accent); }
+    footer { margin-top: 48px; color: var(--muted); font-size: 12px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .verdict { background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+    .verdict h2 { margin: 0 0 6px; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .verdict p { margin: 0; white-space: pre-wrap; }
+    .stats { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>PR Cop <span class="badge">demo</span></h1>
+    </header>
+    <p class="lede">
+      Paste a unified diff. Four specialist reviewers run in parallel
+      (security, performance, style, test coverage), then a consensus pass
+      writes a single PR-comment-ready verdict.
+    </p>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Diff input</h2>
+        <textarea id="diff" spellcheck="false">diff --git a/app/server.py b/app/server.py
+index 1111111..2222222 100644
+--- a/app/server.py
++++ b/app/server.py
+@@ -10,6 +10,9 @@ def create_app():
+     app = Flask(__name__)
+     app.config['SECRET_KEY'] = 'changeme'
++    # NOTE: hardcoded API key
++    app.config['API_KEY'] = 'sk-test-1234567890abcdef'
++    app.debug = True
+     return app
+</textarea>
+        <div class="row">
+          <button id="run">Run review</button>
+          <button id="clear" class="secondary">Clear</button>
+          <span id="status" class="meta"></span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Raw response</h2>
+        <pre id="raw">// click "Run review" to populate</pre>
+      </section>
+    </div>
+
+    <section class="verdict" id="verdict-panel" style="display:none; margin-top:24px;">
+      <h2>Verdict</h2>
+      <p id="verdict"></p>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <div class="findings" id="findings"></div>
+
+    <footer>
+      <strong>Reviewer:</strong>
+      <code id="provider-line">loading…</code>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/caroljo0812/pr-cop">github.com/caroljo0812/pr-cop</a>
+    </footer>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    async function loadProvider() {
+      try {
+        const r = await fetch('/provider');
+        if (!r.ok) throw new Error('non-200');
+        const p = await r.json();
+        $('provider-line').textContent =
+          `${p.effective_provider} / ${p.configured_model}`;
+      } catch (e) {
+        $('provider-line').textContent = 'unavailable (start `prcop serve`)';
+      }
+    }
+
+    function sevBadge(sev) {
+      return `<span class="sev ${sev}">${sev}</span>`;
+    }
+
+    async function runReview() {
+      const diff = $('diff').value;
+      $('run').disabled = true;
+      $('status').textContent = 'reviewing…';
+      $('findings').innerHTML = '';
+      $('verdict-panel').style.display = 'none';
+      try {
+        const r = await fetch('/review/diff', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ diff }),
+        });
+        const data = await r.json();
+        $('raw').textContent = JSON.stringify(data, null, 2);
+        if (!r.ok) {
+          $('status').textContent = 'error';
+          return;
+        }
+        $('verdict').textContent = data.verdict || '';
+        $('stats').textContent =
+          `${data.file_count} file(s) · ${data.finding_count} finding(s) · ${data.duration_ms} ms`;
+        $('verdict-panel').style.display = 'block';
+        const html = (data.findings || []).map(f => `
+          <div class="finding">
+            <div class="top">
+              ${sevBadge(f.severity)}
+              <strong>${escapeHtml(f.title)}</strong>
+              <span class="meta">[${escapeHtml(f.specialist)}] ${escapeHtml(f.category)}</span>
+            </div>
+            <div class="meta">${escapeHtml(f.file)}${f.line ? ':' + f.line : ''}</div>
+            <p style="margin:8px 0 0">${escapeHtml(f.rationale || '')}</p>
+            ${f.suggestion ? `<p style="margin:6px 0 0; color:var(--muted)"><em>suggest:</em> ${escapeHtml(f.suggestion)}</p>` : ''}
+          </div>
+        `).join('');
+        $('findings').innerHTML = html;
+        $('status').textContent = `done in ${data.duration_ms} ms`;
+      } catch (e) {
+        $('status').textContent = 'request failed: ' + e.message;
+      } finally {
+        $('run').disabled = false;
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    $('run').addEventListener('click', runReview);
+    $('clear').addEventListener('click', () => {
+      $('diff').value = '';
+      $('raw').textContent = '';
+      $('findings').innerHTML = '';
+      $('verdict-panel').style.display = 'none';
+      $('status').textContent = '';
+    });
+
+    loadProvider();
+  </script>
+</body>
+</html>
