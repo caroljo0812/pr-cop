@@ -47,6 +47,10 @@ class DiffReviewRequest(BaseModel):
     head: str | None = None
     title: str | None = None
     description: str | None = None
+    specialists: list[str] | None = Field(
+        default=None,
+        description="Optional subset of specialists to run. Choices: security, performance, style, test_coverage.",
+    )
 
 
 class GithubReviewRequest(BaseModel):
@@ -54,6 +58,10 @@ class GithubReviewRequest(BaseModel):
     repo: str
     pr_number: int
     post_comment: bool = False
+    specialists: list[str] | None = Field(
+        default=None,
+        description="Optional subset of specialists to run.",
+    )
 
 
 @app.get("/")
@@ -111,7 +119,14 @@ async def review_diff_endpoint(req: DiffReviewRequest) -> JSONResponse:
         "description": req.description,
     }
     repo_meta = {k: v for k, v in repo_meta.items() if v}
-    result = await review_diff(diff_text=req.diff, repo_meta=repo_meta)
+    try:
+        result = await review_diff(
+            diff_text=req.diff,
+            repo_meta=repo_meta,
+            specialists=req.specialists,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return JSONResponse(content=result.to_dict())
 
 
@@ -121,7 +136,14 @@ async def review_github_endpoint(req: GithubReviewRequest) -> JSONResponse:
         src = await diff_from_github_pr(req.owner, req.repo, req.pr_number)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"GitHub fetch failed: {e}") from e
-    result = await review_diff(diff_text=src.diff_text, repo_meta=src.repo_meta)
+    try:
+        result = await review_diff(
+            diff_text=src.diff_text,
+            repo_meta=src.repo_meta,
+            specialists=req.specialists,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     payload = result.to_dict()
     if req.post_comment:
         body = render_markdown_report(result)

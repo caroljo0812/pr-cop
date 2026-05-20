@@ -15,10 +15,10 @@ from prcop.consensus import deduplicate, sort_findings, write_verdict
 from prcop.diff import FileDiff, parse_diff, render_diff_bundle
 from prcop.llm import ProviderError, call_json, provider_info
 from prcop.specialists import (
-    SQUAD,
     Finding,
     Specialist,
     render_user_prompt,
+    select_squad,
 )
 
 
@@ -121,19 +121,26 @@ async def review_diff(
     base_url: str | None = None,
     max_tokens: int | None = None,
     concurrency: int | None = None,
+    specialists: list[str] | tuple[str, ...] | None = None,
 ) -> ReviewResult:
     """Run the full review pipeline against a unified diff string.
 
     Steps: parse → render → fan out to specialists in parallel → dedupe →
     write consensus verdict via the biographer model.
+
+    ``specialists`` selects a subset of the squad (e.g. ``["security"]`` to
+    run only the security agent). None / empty → full squad. Unknown names
+    raise ValueError.
     """
     started = time.monotonic()
     files = parse_diff(diff_text)
     bundle = render_diff_bundle(files)
 
+    squad = select_squad(specialists)
+
     # Run specialists in parallel. Concurrency caps total in-flight HTTP calls
     # to the LLM provider so we don't get rate-limited on cheap free tiers.
-    concurrency = concurrency or int(os.environ.get("PRCOP_CONCURRENCY", str(len(SQUAD))))
+    concurrency = concurrency or int(os.environ.get("PRCOP_CONCURRENCY", str(len(squad))))
     sem = asyncio.Semaphore(concurrency)
 
     async def guarded(spec: Specialist) -> SpecialistRun:
@@ -142,7 +149,7 @@ async def review_diff(
                 spec, bundle, repo_meta, provider, api_key, model, base_url, max_tokens
             )
 
-    runs = await asyncio.gather(*[guarded(s) for s in SQUAD])
+    runs = await asyncio.gather(*[guarded(s) for s in squad])
 
     all_findings: list[Finding] = []
     for r in runs:
@@ -179,6 +186,7 @@ async def review_diff_files(
     base_url: str | None = None,
     max_tokens: int | None = None,
     concurrency: int | None = None,
+    specialists: list[str] | tuple[str, ...] | None = None,
 ) -> ReviewResult:
     """Variant that takes pre-parsed FileDiff objects (used by /review/files HTTP endpoint)."""
     diff_text = "\n".join(f.render_for_review() for f in files)
@@ -192,6 +200,7 @@ async def review_diff_files(
         base_url=base_url,
         max_tokens=max_tokens,
         concurrency=concurrency,
+        specialists=specialists,
     )
 
 

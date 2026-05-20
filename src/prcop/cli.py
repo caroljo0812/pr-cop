@@ -32,6 +32,15 @@ from prcop.sources import (
     diff_from_text,
     post_github_pr_comment,
 )
+from prcop.specialists import SQUAD_NAMES
+
+
+def _parse_specialists(value: str | None) -> list[str] | None:
+    """Split a comma-separated --specialists value into a clean list."""
+    if not value:
+        return None
+    parts = [p.strip().lower() for p in value.split(",") if p.strip()]
+    return parts or None
 
 
 console = Console()
@@ -75,6 +84,12 @@ def main() -> None:
 @click.option("--head", default="HEAD", help="Head ref (used with --repo).")
 @click.option("--title", default=None, help="Optional PR title for context.")
 @click.option("--description", default=None, help="Optional PR description for context.")
+@click.option(
+    "--specialists",
+    "specialists_csv",
+    default=None,
+    help=f"Comma-separated subset of specialists to run. Choices: {','.join(SQUAD_NAMES)}.",
+)
 @click.option("--json", "json_out", is_flag=True, help="Emit JSON instead of pretty text.")
 @click.option("--markdown", "markdown_out", is_flag=True, help="Emit GitHub-flavoured markdown.")
 def review_cmd(
@@ -84,6 +99,7 @@ def review_cmd(
     head: str,
     title: str | None,
     description: str | None,
+    specialists_csv: str | None,
     json_out: bool,
     markdown_out: bool,
 ) -> None:
@@ -105,7 +121,15 @@ def review_cmd(
     if description:
         src.repo_meta["description"] = description
 
-    result = asyncio.run(review_diff(diff_text=src.diff_text, repo_meta=src.repo_meta))
+    specialists = _parse_specialists(specialists_csv)
+    try:
+        result = asyncio.run(review_diff(
+            diff_text=src.diff_text,
+            repo_meta=src.repo_meta,
+            specialists=specialists,
+        ))
+    except ValueError as e:
+        raise click.UsageError(str(e)) from e
 
     if markdown_out:
         click.echo(render_markdown_report(result))
@@ -122,15 +146,34 @@ def review_cmd(
 @click.option("--post-comment", is_flag=True, help="Post the rendered review back to the PR.")
 @click.option("--markdown", "markdown_out", is_flag=True, help="Emit GitHub-flavoured markdown.")
 @click.option("--json", "json_out", is_flag=True, help="Emit JSON instead of pretty text.")
-def review_pr_cmd(slug: str, pr_number: int, post_comment: bool, markdown_out: bool, json_out: bool) -> None:
+@click.option(
+    "--specialists",
+    "specialists_csv",
+    default=None,
+    help=f"Comma-separated subset of specialists to run. Choices: {','.join(SQUAD_NAMES)}.",
+)
+def review_pr_cmd(
+    slug: str,
+    pr_number: int,
+    post_comment: bool,
+    markdown_out: bool,
+    json_out: bool,
+    specialists_csv: str | None,
+) -> None:
     """Review a GitHub PR. SLUG is owner/repo, e.g. 'octocat/hello-world'."""
     if "/" not in slug:
         raise click.UsageError("slug must be 'owner/repo'")
     owner, repo = slug.split("/", 1)
 
+    specialists = _parse_specialists(specialists_csv)
+
     async def _run():
         src = await diff_from_github_pr(owner, repo, pr_number)
-        result = await review_diff(diff_text=src.diff_text, repo_meta=src.repo_meta)
+        result = await review_diff(
+            diff_text=src.diff_text,
+            repo_meta=src.repo_meta,
+            specialists=specialists,
+        )
         comment_url = None
         if post_comment:
             body = render_markdown_report(result)
@@ -141,7 +184,10 @@ def review_pr_cmd(slug: str, pr_number: int, post_comment: bool, markdown_out: b
                 click.echo(f"warning: failed to post comment: {e}", err=True)
         return result, comment_url
 
-    result, comment_url = asyncio.run(_run())
+    try:
+        result, comment_url = asyncio.run(_run())
+    except ValueError as e:
+        raise click.UsageError(str(e)) from e
 
     if markdown_out:
         click.echo(render_markdown_report(result))

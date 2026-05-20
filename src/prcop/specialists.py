@@ -166,6 +166,7 @@ TEST_COVERAGE = Specialist(
 
 
 SQUAD: list[Specialist] = [SECURITY, PERFORMANCE, STYLE, TEST_COVERAGE]
+SQUAD_NAMES: tuple[str, ...] = tuple(s.name for s in SQUAD)
 
 
 def get_specialist(name: str) -> Specialist | None:
@@ -174,6 +175,27 @@ def get_specialist(name: str) -> Specialist | None:
         if s.name == name:
             return s
     return None
+
+
+def select_squad(names: list[str] | tuple[str, ...] | None) -> list[Specialist]:
+    """Resolve a list of specialist names into a Specialist subset.
+
+    Empty / None → full squad. Unknown names raise ValueError so the CLI / API
+    can surface a clean 4xx instead of silently dropping requested coverage.
+    Order follows the canonical SQUAD order so reports stay deterministic.
+    """
+    if not names:
+        return list(SQUAD)
+    wanted = {n.strip().lower() for n in names if n and n.strip()}
+    if not wanted:
+        return list(SQUAD)
+    unknown = sorted(wanted - set(SQUAD_NAMES))
+    if unknown:
+        raise ValueError(
+            f"unknown specialist(s): {', '.join(unknown)}. "
+            f"valid: {', '.join(SQUAD_NAMES)}"
+        )
+    return [s for s in SQUAD if s.name in wanted]
 
 
 def render_user_prompt(diff_bundle: str, repo_meta: dict[str, Any] | None = None) -> str:
