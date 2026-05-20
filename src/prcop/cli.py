@@ -210,13 +210,13 @@ def provider_cmd() -> None:
 
 
 @main.command("serve")
-@click.option("--host", default=None, help="Override PRCOP_HOST.")
+@click.option("--host", default=None, help="Override PRCOP_HOST. Default 127.0.0.1; use 0.0.0.0 only behind auth.")
 @click.option("--port", default=None, type=int, help="Override PRCOP_PORT.")
 def serve_cmd(host: str | None, port: int | None) -> None:
     """Run the FastAPI server (uvicorn)."""
     import os
     import uvicorn
-    h = host or os.environ.get("PRCOP_HOST", "0.0.0.0")
+    h = host or os.environ.get("PRCOP_HOST", "127.0.0.1")
     p = port or int(os.environ.get("PRCOP_PORT", "8080"))
     uvicorn.run("prcop.server:app", host=h, port=p, reload=False)
 
