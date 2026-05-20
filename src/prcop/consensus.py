@@ -13,12 +13,13 @@ Step 3 is what makes PR Cop feel like a single reviewer rather than four
 shouting agents.
 """
 from __future__ import annotations
+
 import json
 from dataclasses import asdict
 from typing import Any
 
 from prcop.llm import call_chat
-from prcop.specialists import Finding, SEVERITY_RANK
+from prcop.specialists import SEVERITY_RANK, Finding
 
 
 def _key(finding: Finding) -> tuple[str, str, int]:

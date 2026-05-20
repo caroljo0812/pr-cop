@@ -1,7 +1,6 @@
 """Tests for the dependency-free unified-diff parser."""
 from prcop.diff import parse_diff, render_diff_bundle
 
-
 SAMPLE_DIFF = """diff --git a/app/server.py b/app/server.py
 index 1111111..2222222 100644
 --- a/app/server.py

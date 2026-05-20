@@ -9,7 +9,6 @@ from prcop.orchestrator import (
     review_diff,
 )
 
-
 SMALL_DIFF = """diff --git a/app/util.py b/app/util.py
 index 1111111..2222222 100644
 --- a/app/util.py

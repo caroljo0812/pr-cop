@@ -4,6 +4,7 @@ Public entry point: ``review_diff()`` returns a ``ReviewResult`` containing the
 deduplicated findings plus the consensus verdict text.
 """
 from __future__ import annotations
+
 import asyncio
 import json
 import os

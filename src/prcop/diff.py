@@ -5,8 +5,9 @@ We deliberately keep this dependency-free (no `unidiff` library) so the package
 ships small and starts fast.
 """
 from __future__ import annotations
+
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Iterator
 
 
 @dataclass

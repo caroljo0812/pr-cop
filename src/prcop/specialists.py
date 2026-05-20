@@ -12,6 +12,7 @@ Severity scale (intentionally small, easy for LLMs to be consistent on):
   critical | high | medium | low | info
 """
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -44,7 +45,7 @@ class Finding:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any], default_specialist: str = "unknown") -> "Finding":
+    def from_dict(cls, d: dict[str, Any], default_specialist: str = "unknown") -> Finding:
         sev = str(d.get("severity") or "info").lower()
         if sev not in SEVERITY_RANK:
             sev = "info"

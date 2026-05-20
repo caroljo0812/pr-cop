@@ -10,6 +10,7 @@ The CLI is intentionally thin — all real logic lives in ``prcop.orchestrator``
 so the same code path is exercised by tests, the HTTP API, and direct CLI use.
 """
 from __future__ import annotations
+
 import asyncio
 import json
 import sys
@@ -215,6 +216,7 @@ def provider_cmd() -> None:
 def serve_cmd(host: str | None, port: int | None) -> None:
     """Run the FastAPI server (uvicorn)."""
     import os
+
     import uvicorn
     h = host or os.environ.get("PRCOP_HOST", "127.0.0.1")
     p = port or int(os.environ.get("PRCOP_PORT", "8080"))

@@ -2,11 +2,11 @@
 import pytest
 
 from prcop.specialists import (
+    SEVERITIES,
+    SEVERITY_RANK,
     SQUAD,
     SQUAD_NAMES,
     Finding,
-    SEVERITIES,
-    SEVERITY_RANK,
     get_specialist,
     render_user_prompt,
     select_squad,
@@ -54,7 +54,7 @@ def test_render_user_prompt_includes_meta_and_diff():
 
 
 def test_squad_names_match_squad_order():
-    assert SQUAD_NAMES == tuple(s.name for s in SQUAD)
+    assert tuple(s.name for s in SQUAD) == SQUAD_NAMES
 
 
 def test_select_squad_none_returns_full_squad():
